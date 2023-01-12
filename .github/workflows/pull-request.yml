@@ -1,22 +1,27 @@
-# This workflow will triage pull requests and apply a label based on the
-# paths that are modified in the pull request.
-#
-# To use this workflow, you will need to set up a .github/labeler.yml
-# file with configuration.  For more information, see:
-# https://github.com/actions/labeler
-
 name: Labeler
-on: [pull_request]
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, labeled]
+  pull_request_review:
+    types: [submitted]
 
 jobs:
   label:
-
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-
+    if: github.event_name == 'pull_request' && github.event.action == 'ready_for_review' || github.event_name == 'pull_request_review' && github.event.review.state == 'approved'
     steps:
-    - uses: actions/labeler@v4
+    - name: Check for folder or file changes
+      run: |
+        if [[ $(git diff --name-only $GITHUB_SHA) =~ "folderA" ]] || [[ $(git diff --name-only $GITHUB_SHA) =~ "fileA.txt" ]]; then
+          echo "Label: FolderA or FileA Changes"
+          git checkout $GITHUB_SHA
+          git log -1 --pretty=%B > message.txt
+          echo "Label: FolderA or FileA Changes" >> message.txt
+          git commit -a --amend -F message.txt
+          git push --force
+        fi
+    - name: Add label to PR
+      uses: actions/labeler@v4
       with:
         repo-token: "${{ secrets.GITHUB_TOKEN }}"
+        labels: "folderA, fileA"
